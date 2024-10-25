@@ -1,22 +1,20 @@
 import logging
-from typing import List
 from abc import ABC, abstractmethod
 
 import gevent
 from gevent import spawn
-from ..node import Node
 from .abstract_node import AbstractNode
 
 logger = logging.getLogger(__name__)
 
 
 class NodeGroup(AbstractNode, ABC):
-    def __init__(self, all_nodes: List[Node]):
+    def __init__(self, all_nodes):
         super().__init__()
         assert len(all_nodes) != 0, f"No node to compose the node group {self.__name__}"
         self.all_nodes = {node.__name__: node for node in all_nodes}
-        self.heads: dict[Node] = {}
-        self.tails: dict[Node] = {}
+        self.heads = {}
+        self.tails = {}
         self._connect_nodes()
 
     @abstractmethod
