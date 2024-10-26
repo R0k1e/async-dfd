@@ -1,9 +1,8 @@
 import logging
 import functools
-from typing import List
 
 from ..pipeline import Pipeline
-from ...node import Node, label_proc_decorator
+from ...decorator import label_proc_decorator
 from ...label import LabelData
 
 logger = logging.getLogger(__name__)
@@ -22,7 +21,7 @@ class LabelPipeline(Pipeline):
 
     """
 
-    def __init__(self, all_nodes: List[Node]):
+    def __init__(self, all_nodes):
         super().__init__(all_nodes=all_nodes)
         self.label_functions = []
         for node in self.all_nodes.values():

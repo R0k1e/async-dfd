@@ -1,7 +1,7 @@
 import functools
 import logging
 
-from ..label import LabelData
+from .label import LabelData
 
 logger = logging.getLogger(__name__)
 

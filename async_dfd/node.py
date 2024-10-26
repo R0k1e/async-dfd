@@ -15,14 +15,15 @@ from tenacity import (
 
 from .decorator import *
 
-from .. import ASYNC_DFD_CONFIG
-from ..exceptions import NodeProcessingError
-from ..interface import AbstractNode, NodeTransferable
+from . import ASYNC_DFD_CONFIG
+from .exceptions import NodeProcessingError
+from .abstract_node import AbstractNode
+from .node_link import NodeLink
 
 logger = logging.getLogger(__name__)
 
 
-class Node(AbstractNode, NodeTransferable):
+class Node(AbstractNode, NodeLink):
     def __init__(
         self,
         proc_func,
@@ -43,20 +44,22 @@ class Node(AbstractNode, NodeTransferable):
         )
 
         self.__name__ = proc_func.__name__
+        self.head = self
+        self.tail = self
+
         self.src_queue = Queue(self.queue_size)
+        self.criteria = criteria
+        self.no_output = no_output
+        self.is_data_iterable = is_data_iterable
+        self.src_nodes = {}
+        self.dst_nodes = {}
+        self.get_data_lock = gevent.lock.Semaphore(1)
 
         # first decorator will first wrap, as the inner decorator
         self.get_decorators = []
         self.proc_decorators = []
         self.put_decorators = []
-
         self._proc_data = self._error_decorator(proc_func)
-        self.criteria = criteria
-
-        self.is_data_iterable = is_data_iterable
-        self.no_output = no_output
-
-        self.get_data_lock = gevent.lock.Semaphore(1)
 
         self.tasks = []  # store all worker tasks
         self.executing_data_queue = []
@@ -69,7 +72,9 @@ class Node(AbstractNode, NodeTransferable):
         self._setup_decorators()
         self._spawn_workers()
         super().start()
-        logger.info(f"Node {self.__name__} start, src_nodes: {self.src_nodes}, dst_nodes: {self.dst_nodes}")
+        logger.info(
+            f"Node {self.__name__} start, src_nodes: {self.src_nodes}, dst_nodes: {self.dst_nodes}"
+        )
         return self.tasks
 
     def end(self):
@@ -85,9 +90,15 @@ class Node(AbstractNode, NodeTransferable):
     def put(self, data):
         self.src_queue.put(data)
 
-    def set_destination(self, node):
+    def connect(self, node):
+        self.set_dst_node(node)
+        node.set_src_node(self)
+
+    def set_dst_node(self, node):
         self.dst_nodes[node.__name__] = node
-        node.src_nodes[self.__name__] = self
+
+    def set_src_node(self, node):
+        self.src_nodes[node.__name__] = node
 
     def add_proc_decorator(self, decorator):
         self.proc_decorators.append(decorator)
@@ -155,15 +166,14 @@ class Node(AbstractNode, NodeTransferable):
         while self.is_start:
             data = None
             try:
-                if len(self.executing_data_queue) < self.worker_num:
-                    with self.get_data_lock:
-                        data = next(self.get_data_generator)
-                    self.executing_data_queue.append(data)
-                    try:
-                        result = self._proc_data(data)
-                        self._put_data(result)
-                    finally:
-                        self.executing_data_queue.remove(data)
+                with self.get_data_lock:
+                    data = next(self.get_data_generator)
+                self.executing_data_queue.append(data)
+                try:
+                    result = self._proc_data(data)
+                    self._put_data(result)
+                finally:
+                    self.executing_data_queue.remove(data)
             except StopIteration:
                 logger.info(f"Node {self.__name__} No. {task_id} stop")
                 break

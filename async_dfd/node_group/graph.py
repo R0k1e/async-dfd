@@ -1,8 +1,7 @@
 import logging
 from collections import deque, defaultdict
 
-from ..node import Node
-from ..interface import NodeGroup
+from .node_group import NodeGroup
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +10,33 @@ class Graph(NodeGroup):
     def start(self):
         self.all_nodes = self.topological_sort(self.all_nodes)
         super().start()
+        self.heads = {}
+        self.tails = {}
 
-    def topological_sort(self, all_nodes: dict[Node]):
+    @property
+    def src_nodes(self):
+        src_nodes = {}
+        for node in self.heads.values():
+            src_nodes.update(node.src_nodes)
+        return src_nodes
+
+    @property
+    def dst_nodes(self):
+        dst_nodes = {}
+        for node in self.tails.values():
+            dst_nodes.update(node.dst_nodes)
+        return dst_nodes
+    
+    @property
+    def head(self):
+        raise NotImplementedError("Graph has multiple heads, use heads instead")
+    
+    @property
+    def tail(self):
+        raise NotImplementedError("Graph has multiple tails, use tails instead")
+        
+
+    def topological_sort(self, all_nodes):
         in_degree = defaultdict(int)
         descriptions = {}
         for desc, node in all_nodes:

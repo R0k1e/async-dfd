@@ -10,25 +10,9 @@ class AbstractNode(ABC):
         # inherited from the parent node group
         self.serial_number = []
         self.__name__ = self.__class__.__name__
+        self.head = None
+        self.tail = None
         self.is_start = False
-        self._src_nodes = {}
-        self._dst_nodes = {}
-
-    @property
-    def src_nodes(self):
-        return self._src_nodes
-
-    @src_nodes.setter
-    def src_nodes(self, value):
-        self._src_nodes = value
-
-    @property
-    def dst_nodes(self):
-        return self._dst_nodes
-
-    @dst_nodes.setter
-    def dst_nodes(self, value):
-        self._dst_nodes = value
 
     def set_name(self, name):
         self.__name__ = name
@@ -38,8 +22,8 @@ class AbstractNode(ABC):
 
     @abstractmethod
     def start(self):
-        self.is_start = True
+        pass
 
     @abstractmethod
     def end(self):
-        self.is_start = False
+        pass

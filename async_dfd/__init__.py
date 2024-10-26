@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 import json
 
 try:
@@ -6,9 +9,8 @@ try:
 except FileNotFoundError:
     ASYNC_DFD_CONFIG = {}
 
-from .graph import graph
-from .node import node
-from .pipeline import pipeline
+from .node import Node
+from .node_group import node_group
 from .analyser import analyser
 
-__all__ = ["graph", "node", "pipeline", "analyser", "exceptions"]
+__all__ = ["node_group", "Node", "analyser", "exceptions", "decorator"]
