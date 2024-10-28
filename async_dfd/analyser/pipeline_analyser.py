@@ -74,7 +74,7 @@ class PipelineAnalyser(Analyser):
             "Avg Speed",
         ]
 
-        def add_infos(node_group, table):
+        def add_infos(node_group, cur_table):
             for node in node_group.all_nodes.values():
                 if isinstance(node, Node) and node.is_start:
                     info = self.func_info[node.__name__]
@@ -89,9 +89,9 @@ class PipelineAnalyser(Analyser):
 
                         info.interval_exec_count = 0
                         info.interval_exec_time = 0
-                    table.append(
+                    cur_table.append(
                         [
-                            ".".join(map(str, node.serial_number)),
+                            "-".join(map(str, node.serial_number)),
                             node.__name__,
                             f"{node.src_queue.qsize()}/{node.src_queue.maxsize}",
                             f"{len(node.executing_data_queue)}/{node.worker_num}",
@@ -108,7 +108,7 @@ class PipelineAnalyser(Analyser):
                         ]
                     )
                 else:
-                    add_infos(node, table)
+                    add_infos(node, cur_table)
 
         add_infos(self.node_group, table)
 
