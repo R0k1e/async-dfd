@@ -35,7 +35,7 @@ class NodeLink(ABC):
         pass
     
     @abstractmethod
-    def connect(self, node):
+    def connect(self, node, criteria=lambda data: True):
         pass
 
     def __rshift__(self, other):

@@ -16,7 +16,7 @@ from tenacity import (
 from .decorator import *
 
 from . import ASYNC_DFD_CONFIG
-from .exceptions import NodeProcessingError
+from ..exceptions import NodeProcessingError
 from .abstract_node import AbstractNode
 from .node_link import NodeLink
 
@@ -27,7 +27,6 @@ class Node(AbstractNode, NodeLink):
     def __init__(
         self,
         proc_func,
-        criteria=lambda src_node, data: True,
         worker_num=None,
         queue_size=None,
         no_output=False,
@@ -48,7 +47,7 @@ class Node(AbstractNode, NodeLink):
         self.tail = self
 
         self.src_queue = Queue(self.queue_size)
-        self.criteria = criteria
+        self.criterias = {}
         self.no_output = no_output
         self.is_data_iterable = is_data_iterable
         self.src_nodes = {}
@@ -90,9 +89,11 @@ class Node(AbstractNode, NodeLink):
     def put(self, data):
         self.src_queue.put(data)
 
-    def connect(self, node):
+    def connect(self, node, criteria=lambda data: True):
         self.set_dst_node(node)
         node.set_src_node(self)
+        self.criterias[node.__name__] = criteria
+        return node
 
     def set_dst_node(self, node):
         self.dst_nodes[node.__name__] = node
@@ -216,7 +217,7 @@ class Node(AbstractNode, NodeLink):
         Puts data to the destination queue.
         """
         for node in self.dst_nodes.values():
-            if node.criteria(self, data):
+            if self.criterias[node.__name__](data):
                 node.put(data)
 
     def _error_decorator(self, func):

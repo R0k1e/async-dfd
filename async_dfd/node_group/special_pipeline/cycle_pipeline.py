@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 class CyclePipeline(Pipeline):
 
-    def __init__(self, all_nodes, head_output=False):
+    def __init__(self, all_nodes, tail_node_index=None):
         super().__init__(all_nodes=all_nodes)
         self.tail.set_destination(self.head)
-        if head_output:
-            self.tail = self.head
+        if tail_node_index:
+            self.tail = all_nodes[tail_node_index]

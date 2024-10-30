@@ -1,7 +1,7 @@
 import logging
 
 from .node_group import NodeGroup
-from ..node_link import NodeLink
+from ..node.node_link import NodeLink
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +25,6 @@ class Pipeline(NodeGroup, NodeLink):
                 logger.info(f"connect {former.__name__} to {node.__name__}")
                 former.connect(node)
                 former = node
-
-    @property
-    def criteria(self):
-        return self.head.criteria
 
     @property
     def src_nodes(self):
@@ -55,6 +51,7 @@ class Pipeline(NodeGroup, NodeLink):
     def put(self, data):
         self.head.put(data)
 
-    def connect(self, node):
+    def connect(self, node, criteria=lambda data: True):
         self.tail.set_dst_node(node)
-        node.set_src_node(self.tail)
+        node.set_src_node(self)
+        self.tail.criterias[node.__name__] = criteria

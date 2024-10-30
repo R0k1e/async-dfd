@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 import gevent
 from gevent import spawn
-from ..abstract_node import AbstractNode
+from ..node.abstract_node import AbstractNode
 
 logger = logging.getLogger(__name__)
 
