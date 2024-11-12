@@ -54,4 +54,7 @@ class Pipeline(NodeGroup, NodeLink):
     def connect(self, node, criteria=lambda data: True):
         self.tail.set_dst_node(node)
         node.set_src_node(self)
-        self.tail.criterias[node.__name__] = criteria
+        self.set_dst_criteria(node, criteria)
+        
+    def set_dst_criteria(self, node, criteria):
+        self.tail.set_dst_criteria(node, criteria)

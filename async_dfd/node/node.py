@@ -15,7 +15,7 @@ from tenacity import (
 
 from .decorator import *
 
-from . import ASYNC_DFD_CONFIG
+from .. import ASYNC_DFD_CONFIG
 from ..exceptions import NodeProcessingError
 from .abstract_node import AbstractNode
 from .node_link import NodeLink
@@ -92,8 +92,11 @@ class Node(AbstractNode, NodeLink):
     def connect(self, node, criteria=lambda data: True):
         self.set_dst_node(node)
         node.set_src_node(self)
-        self.criterias[node.__name__] = criteria
+        self.set_dst_criteria(node, criteria)
         return node
+    
+    def set_dst_criteria(self, node, criteria):
+        self.criterias[node.__name__] = criteria
 
     def set_dst_node(self, node):
         self.dst_nodes[node.__name__] = node

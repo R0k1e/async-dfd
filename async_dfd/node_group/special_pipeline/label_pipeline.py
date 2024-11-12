@@ -2,7 +2,7 @@ import logging
 import functools
 
 from ..pipeline import Pipeline
-from ...decorator import label_proc_decorator
+from ...node.decorator import label_proc_decorator
 from ...label import LabelData
 
 logger = logging.getLogger(__name__)

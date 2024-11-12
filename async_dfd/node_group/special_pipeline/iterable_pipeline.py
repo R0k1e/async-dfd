@@ -35,8 +35,9 @@ class IterablePipeline(LabelPipeline):
                 self.over_results[index] = None
                 return (self.task_label, index)
 
-    def __init__(self, all_nodes: List[Node]):
+    def __init__(self, all_nodes: List[Node], is_refresh_iter_data: bool = False):
         super().__init__(all_nodes=all_nodes)
+        self.is_refresh_iter_data = is_refresh_iter_data
         self.processing_tasks = {}
         self.head.add_get_decorator(self._iterable_get_data_decorator)
         self.tail.add_put_decorator(self._iterable_put_data_decorator)
@@ -51,6 +52,8 @@ class IterablePipeline(LabelPipeline):
     def _iterable_get_data_decorator(self, get_func):
         @functools.wraps(get_func)
         def _iterable_get_data_wrapper(iter_data):
+            if self.is_refresh_iter_data:
+                iter_data = iter(iter_data)
             new_tasks = self.ProcessingTask(iter_data)
             self.processing_tasks[new_tasks.task_label] = new_tasks
             ret = get_func(iter_data)
