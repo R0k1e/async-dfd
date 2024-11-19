@@ -29,6 +29,7 @@ class Node(AbstractNode, NodeLink):
         proc_func,
         worker_num=None,
         queue_size=None,
+        no_input=False,
         no_output=False,
         is_data_iterable=False,
         discard_none_output=False,
@@ -50,6 +51,7 @@ class Node(AbstractNode, NodeLink):
 
         self.src_queue = Queue(self.queue_size)
         self.criterias = {}
+        self.no_input = no_input
         self.no_output = no_output
         self.is_data_iterable = is_data_iterable
         self.discard_none_output = discard_none_output
@@ -97,7 +99,7 @@ class Node(AbstractNode, NodeLink):
         node.set_src_node(self)
         self.set_dst_criteria(node, criteria)
         return node
-    
+
     def set_dst_criteria(self, node, criteria):
         self.criterias[node.__name__] = criteria
 
@@ -173,14 +175,12 @@ class Node(AbstractNode, NodeLink):
         while self.is_start:
             data = None
             try:
-                with self.get_data_lock:
-                    data = next(self.get_data_generator)
-                self.executing_data_queue.append(data)
-                try:
-                    result = self._proc_data(data)
-                    self._put_data(result)
-                finally:
-                    self.executing_data_queue.remove(data)
+                if not self.no_input:
+                    with self.get_data_lock:
+                        data = next(self.get_data_generator)
+                    self.executing_data_queue.append(data)
+                result = self._proc_data(data)
+                self._put_data(result)
             except StopIteration:
                 logger.info(f"Node {self.__name__} No. {task_id} stop")
                 break
@@ -199,6 +199,9 @@ class Node(AbstractNode, NodeLink):
                         + f"Node name: {self.__name__}\n"
                         + traceback.format_exc()
                     )
+            finally:
+                if data:
+                    self.executing_data_queue.remove(data)
             sleep(0)
 
     def _get_data(self):
@@ -237,7 +240,10 @@ class Node(AbstractNode, NodeLink):
         @functools.wraps(func)
         def error_wrapper(data):
             try:
-                result = func(data)
+                if self.no_input:
+                    result = func()
+                else:
+                    result = func(data)
                 return result
             except StopIteration:
                 raise
