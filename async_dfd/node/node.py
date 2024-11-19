@@ -46,6 +46,7 @@ class Node(AbstractNode, NodeLink):
         self.__name__ = proc_func.__name__
         self.head = self
         self.tail = self
+        self.is_start = False
 
         self.src_queue = Queue(self.queue_size)
         self.criterias = {}
@@ -72,7 +73,7 @@ class Node(AbstractNode, NodeLink):
         self._validate_destinations()
         self._setup_decorators()
         self._spawn_workers()
-        super().start()
+        self.is_start = True
         logger.info(
             f"Node {self.__name__} start, src_nodes: {self.src_nodes}, dst_nodes: {self.dst_nodes}"
         )
@@ -83,7 +84,7 @@ class Node(AbstractNode, NodeLink):
         Signals the end of the pipeline by putting a stop flag in the source queue.
         """
         # Need to wait for drain, so not set is_start to False
-        super().end()
+        self.is_start = False
         for _ in range(self.worker_num):
             self.src_queue.put(StopIteration())
         gevent.joinall(self.tasks)

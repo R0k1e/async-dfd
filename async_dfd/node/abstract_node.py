@@ -12,7 +12,6 @@ class AbstractNode(ABC):
         self.__name__ = self.__class__.__name__
         self.head = None
         self.tail = None
-        self.is_start = False
 
     def set_name(self, name):
         self.__name__ = name
