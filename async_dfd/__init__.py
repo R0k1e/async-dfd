@@ -14,6 +14,7 @@ from .node import Node, decorator
 from .node_group import (
     Graph,
     Pipeline,
+    Sequential,
     CyclePipeline,
     LabelPipeline,
     IterablePipeline,
@@ -25,6 +26,7 @@ __all__ = [
     "Node",
     "Graph",
     "Pipeline",
+    "Sequential",
     "CyclePipeline",
     "LabelPipeline",
     "IterablePipeline",

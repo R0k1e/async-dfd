@@ -15,17 +15,6 @@ class Pipeline(NodeGroup, NodeLink):
         self.head = all_nodes[0]
         self.tail = all_nodes[-1]
 
-    def _connect_nodes(self):
-        former = None
-        for node in self.all_nodes.values():
-            if former is None:
-                former = node
-                continue
-            else:
-                logger.info(f"connect {former.__name__} to {node.__name__}")
-                former.connect(node)
-                former = node
-
     @property
     def src_nodes(self):
         return self.head.src_nodes
