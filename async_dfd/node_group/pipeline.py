@@ -7,13 +7,16 @@ logger = logging.getLogger(__name__)
 
 
 class Pipeline(NodeGroup, NodeLink):
-    def __init__(
-        self,
-        all_nodes,
-    ):
+    def __init__(self, all_nodes, head=None, tail=None):
         super().__init__(all_nodes=all_nodes)
-        self.head = all_nodes[0]
-        self.tail = all_nodes[-1]
+        if head is None:
+            self.head = all_nodes[0]
+        else:
+            self.head = head
+        if tail is None:
+            self.tail = all_nodes[-1]
+        else:
+            self.tail = tail
 
     @property
     def src_nodes(self):
@@ -44,6 +47,6 @@ class Pipeline(NodeGroup, NodeLink):
         self.tail.set_dst_node(node)
         node.set_src_node(self)
         self.set_dst_criteria(node, criteria)
-        
+
     def set_dst_criteria(self, node, criteria):
         self.tail.set_dst_criteria(node, criteria)

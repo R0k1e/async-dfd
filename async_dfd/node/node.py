@@ -31,6 +31,7 @@ class Node(AbstractNode, NodeLink):
         queue_size=None,
         no_output=False,
         is_data_iterable=False,
+        discard_none_output=False,
         timeout=None,
     ) -> None:
         super().__init__()
@@ -50,6 +51,7 @@ class Node(AbstractNode, NodeLink):
         self.criterias = {}
         self.no_output = no_output
         self.is_data_iterable = is_data_iterable
+        self.discard_none_output = discard_none_output
         self.src_nodes = {}
         self.dst_nodes = {}
         self.get_data_lock = gevent.lock.Semaphore(1)
@@ -219,6 +221,8 @@ class Node(AbstractNode, NodeLink):
         """
         Puts data to the destination queue.
         """
+        if self.discard_none_output and data is None:
+            return
         for node in self.dst_nodes.values():
             if self.criterias[node.__name__](data):
                 node.put(data)
