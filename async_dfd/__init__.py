@@ -1,6 +1,10 @@
+import gevent
+import sys
 from gevent import monkey
 
 monkey.patch_all()
+print("Monkey patching gevent in async dfd")
+gevent.get_hub().exception_stream = sys.stderr
 
 import json
 
@@ -22,7 +26,9 @@ from .node_group import (
 )
 from .analyser import Analyser, Monitor, PipelineAnalyser
 
+DEBUG_MOD = ASYNC_DFD_CONFIG.get("debug_mode", False)
 __all__ = [
+    "DEBUG_MOD",
     "Node",
     "Graph",
     "Pipeline",
@@ -34,5 +40,5 @@ __all__ = [
     "Analyser",
     "Monitor",
     "PipelineAnalyser",
-    "decorator"
+    "decorator",
 ]

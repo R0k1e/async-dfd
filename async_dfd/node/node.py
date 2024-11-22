@@ -9,13 +9,14 @@ from gevent.queue import Queue
 from tenacity import (
     retry,
     retry_if_not_exception_type,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential_jitter,
 )
 
 from .decorator import *
 
-from .. import ASYNC_DFD_CONFIG
+from .. import ASYNC_DFD_CONFIG, is_debug
 from ..exceptions import NodeProcessingError
 from .abstract_node import AbstractNode
 from .node_link import NodeLink
@@ -30,18 +31,18 @@ class Node(AbstractNode, NodeLink):
         worker_num=None,
         queue_size=None,
         no_input=False,
-        no_output=False,
         is_data_iterable=False,
+        no_output=False,
         discard_none_output=False,
         timeout=None,
     ) -> None:
         super().__init__()
         self.timeout = timeout if timeout else ASYNC_DFD_CONFIG.get("timeout", None)
         self.worker_num = (
-            worker_num if worker_num else ASYNC_DFD_CONFIG.get("worker_num", 10)
+            worker_num if worker_num else ASYNC_DFD_CONFIG.get("worker_num", 1)
         )
         self.queue_size = (
-            queue_size if queue_size else ASYNC_DFD_CONFIG.get("queue_size", 10)
+            queue_size if queue_size else ASYNC_DFD_CONFIG.get("queue_size", 1)
         )
 
         self.__name__ = proc_func.__name__
@@ -184,21 +185,6 @@ class Node(AbstractNode, NodeLink):
             except StopIteration:
                 logger.info(f"Node {self.__name__} No. {task_id} stop")
                 break
-            except Exception as e:
-                if data:
-                    logger.error(
-                        f"Unexpected error in func_wrapper: {e}\n"
-                        + f"Data: {data}\n"
-                        + f"Node name: {self.__name__}\n"
-                        + traceback.format_exc()
-                    )
-                else:
-                    logger.error(
-                        f"Unexpected error in func_wrapper: {e}\n"
-                        + f"Not get data\n"
-                        + f"Node name: {self.__name__}\n"
-                        + traceback.format_exc()
-                    )
             finally:
                 if data:
                     self.executing_data_queue.remove(data)
@@ -217,6 +203,8 @@ class Node(AbstractNode, NodeLink):
                 data, Iterable
             ), f"Unpack decorator only supports single iterable data, current data:{data}"
             for d in data:
+                if isinstance(d, StopIteration):
+                    raise StopIteration()
                 yield d
         else:
             yield data
@@ -235,32 +223,29 @@ class Node(AbstractNode, NodeLink):
         @retry(
             stop=stop_after_attempt(5),
             wait=wait_exponential_jitter(max=10),
-            retry=retry_if_not_exception_type(StopIteration),
+            retry=retry_if_exception_type(Exception),
         )
+        @functools.wraps(func)
+        def input_wrapper(data):
+            if self.no_input:
+                result = func()
+            else:
+                result = func(data)
+            return result
+
         @functools.wraps(func)
         def error_wrapper(data):
             try:
-                if self.no_input:
-                    result = func()
-                else:
-                    result = func(data)
-                return result
-            except StopIteration:
-                raise
-            except BaseException as e:
-                error_stack = traceback.format_exc()
+                return input_wrapper(data)
+            except Exception as e:
                 logger.error(
-                    f"{self.__name__} error: {e}, current queue size: {self.src_queue.qsize()}"
-                )
-                logger.error(f"Error stack:\n{error_stack}")
-                raise e
+                    f"{self.__name__} error: {e}, input_data: {data}"
+                    f"Error stack:\n{traceback.format_exc()}"
+                    )
+                if is_debug:
+                    raise e
+                else:
+                    error_stack = traceback.format_exc()
+                    return NodeProcessingError((data), self.__name__, e, error_stack)
 
-        @functools.wraps(func)
-        def final_wrapper(data):
-            try:
-                return error_wrapper(data)
-            except BaseException as e:
-                error_stack = traceback.format_exc()
-                return NodeProcessingError((data), self.__name__, e, error_stack)
-
-        return final_wrapper
+        return error_wrapper

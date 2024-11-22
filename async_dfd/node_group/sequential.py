@@ -13,6 +13,5 @@ class Sequential(Pipeline):
                 former = node
                 continue
             else:
-                logger.info(f"connect {former.__name__} to {node.__name__}")
                 former.connect(node)
                 former = node

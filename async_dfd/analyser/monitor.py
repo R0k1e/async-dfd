@@ -10,9 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class Monitor(metaclass=SingletonMeta):
-    def __init__(self) -> None:
+    def __init__(self, report_interval=10) -> None:
         self.registered_analysers = []
         self.start_time = None
+        self.report_interval = report_interval
 
     def start(self):
         for analyser in self.registered_analysers:
@@ -23,7 +24,7 @@ class Monitor(metaclass=SingletonMeta):
 
     def get_all_info(self):
         while True:
-            time.sleep(15)
+            time.sleep(self.report_interval)
             total_time = time.time() - self.start_time
             readable_time = str(timedelta(seconds=total_time))
             logger.info("=" * 80 + f"\nTotal execution time: {readable_time}")
