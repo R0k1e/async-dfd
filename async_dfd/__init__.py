@@ -26,9 +26,7 @@ from .node_group import (
 )
 from .analyser import Analyser, Monitor, PipelineAnalyser
 
-DEBUG_MOD = ASYNC_DFD_CONFIG.get("debug_mode", False)
 __all__ = [
-    "DEBUG_MOD",
     "Node",
     "Graph",
     "Pipeline",

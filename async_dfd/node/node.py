@@ -16,12 +16,13 @@ from tenacity import (
 
 from .decorator import *
 
-from .. import ASYNC_DFD_CONFIG, is_debug
+from .. import ASYNC_DFD_CONFIG
 from ..exceptions import NodeProcessingError
 from .abstract_node import AbstractNode
 from .node_link import NodeLink
 
 logger = logging.getLogger(__name__)
+DEBUG_MOD = ASYNC_DFD_CONFIG.get("debug_mode", False)
 
 
 class Node(AbstractNode, NodeLink):
@@ -86,8 +87,6 @@ class Node(AbstractNode, NodeLink):
         """
         Signals the end of the pipeline by putting a stop flag in the source queue.
         """
-        # Need to wait for drain, so not set is_start to False
-        self.is_start = False
         for _ in range(self.worker_num):
             self.src_queue.put(StopIteration())
         gevent.joinall(self.tasks)
@@ -95,10 +94,12 @@ class Node(AbstractNode, NodeLink):
     def put(self, data):
         self.src_queue.put(data)
 
-    def connect(self, node, criteria=lambda data: True):
+    def connect(self, node, criteria=None):
         self.set_dst_node(node)
         node.set_src_node(self)
-        self.set_dst_criteria(node, criteria)
+
+        if criteria:
+            self.set_dst_criteria(node, criteria)
         return node
 
     def set_dst_criteria(self, node, criteria):
@@ -179,6 +180,8 @@ class Node(AbstractNode, NodeLink):
                 if not self.no_input:
                     with self.get_data_lock:
                         data = next(self.get_data_generator)
+                    if isinstance(data, StopIteration):
+                        raise StopIteration()
                     self.executing_data_queue.append(data)
                 result = self._proc_data(data)
                 self._put_data(result)
@@ -186,9 +189,12 @@ class Node(AbstractNode, NodeLink):
                 logger.info(f"Node {self.__name__} No. {task_id} stop")
                 break
             finally:
-                if data:
+                if data in self.executing_data_queue:
                     self.executing_data_queue.remove(data)
             sleep(0)
+        if all(task.ready() for task in self.tasks):
+            logger.info(f"Node {self.__name__} No. {task_id} all tasks finished")
+            self.is_start = False
 
     def _get_data(self):
         while self.is_start:
@@ -197,14 +203,12 @@ class Node(AbstractNode, NodeLink):
 
     def _get_one_data(self, data):
         if isinstance(data, StopIteration):
-            raise StopIteration()
+            yield StopIteration()
         if self.is_data_iterable:
             assert isinstance(
                 data, Iterable
             ), f"Unpack decorator only supports single iterable data, current data:{data}"
             for d in data:
-                if isinstance(d, StopIteration):
-                    raise StopIteration()
                 yield d
         else:
             yield data
@@ -216,7 +220,9 @@ class Node(AbstractNode, NodeLink):
         if self.discard_none_output and data is None:
             return
         for node in self.dst_nodes.values():
-            if self.criterias[node.__name__](data):
+            if not self.criterias.get(node.__name__, None) or self.criterias[
+                node.__name__
+            ](data):
                 node.put(data)
 
     def _error_decorator(self, func):
@@ -241,8 +247,8 @@ class Node(AbstractNode, NodeLink):
                 logger.error(
                     f"{self.__name__} error: {e}, input_data: {data}"
                     f"Error stack:\n{traceback.format_exc()}"
-                    )
-                if is_debug:
+                )
+                if DEBUG_MOD:
                     raise e
                 else:
                     error_stack = traceback.format_exc()

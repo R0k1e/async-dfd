@@ -89,6 +89,12 @@ class PipelineAnalyser(Analyser):
 
                         info.interval_exec_count = 0
                         info.interval_exec_time = 0
+                        
+                    name = node.__name__
+                    if node.is_start:
+                        name = f"{name} (Running)"
+                    else:
+                        name = f"{name} (Finished)"
                     cur_table.append(
                         [
                             "-".join(map(str, node.serial_number)),
