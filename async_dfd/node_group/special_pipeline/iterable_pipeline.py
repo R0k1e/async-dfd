@@ -44,6 +44,8 @@ class IterablePipeline(LabelPipeline):
         self.head.is_data_iterable = True
         self.set_label_function(self.get_label)
 
+        self.ppl_put_func = None
+
     def get_label(self, data_point, data_gen):
         task = self.processing_tasks[generate_label(data_gen)]
         label = task.get_label(data_point)
@@ -54,8 +56,13 @@ class IterablePipeline(LabelPipeline):
         def _iterable_get_data_wrapper(iter_data):
             if self.is_refresh_iter_data:
                 iter_data = iter(iter_data)
-            new_tasks = self.ProcessingTask(iter_data)
-            self.processing_tasks[new_tasks.task_label] = new_tasks
+            try:
+                new_tasks = self.ProcessingTask(iter_data)
+                self.processing_tasks[new_tasks.task_label] = new_tasks
+            except StopIteration:  # no data
+                task_label = "No Iterable Data"
+                data = LabelData((iter_data, {}), task_label)
+                self.ppl_put_func(data)
             ret = get_func(iter_data)
             return ret
 
@@ -80,7 +87,9 @@ class IterablePipeline(LabelPipeline):
             if task.is_generator_exhausted and all(
                 over_results := [v is not None for v in task.over_results.values()]
             ):
+                del self.processing_tasks[label[0]]
                 data = LabelData((task.original_data, over_results), label[0])
                 put_func(data)
 
+        self.ppl_put_func = put_func
         return _iterable_put_data_wrapper

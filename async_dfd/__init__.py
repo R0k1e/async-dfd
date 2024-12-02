@@ -1,7 +1,7 @@
 import gevent
 import sys
+import trio # do not delete this line, it will be effected by monkey patch that will cause fault
 from gevent import monkey
-
 monkey.patch_all()
 print("Monkey patching gevent in async dfd")
 gevent.get_hub().exception_stream = sys.stderr

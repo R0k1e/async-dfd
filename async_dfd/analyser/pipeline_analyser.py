@@ -95,6 +95,7 @@ class PipelineAnalyser(Analyser):
                         name = f"{name} (Running)"
                     else:
                         name = f"{name} (Finished)"
+                        
                     cur_table.append(
                         [
                             "-".join(map(str, node.serial_number)),

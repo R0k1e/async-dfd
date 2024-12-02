@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "async_dfd"
-version = "0.1.10"
+version = "0.1.11"
 description = "A library for async accelerate based on gevent coroutine in python."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,7 +19,8 @@ classifiers = [
 dependencies = [
     "gevent", 
     "tabulate",
-    "tenacity"
+    "tenacity",
+    "trio"
 ]
 
 [tool.setuptools.packages.find]
