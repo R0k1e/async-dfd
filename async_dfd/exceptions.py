@@ -4,11 +4,11 @@ class IllegalArgumentError(Exception):
 
 
 class NodeProcessingError(Exception):
-    def __init__(self, data, func, error, stack) -> None:
+    def __init__(self, data, func_name, error, stack) -> None:
         super().__init__(
-            f"NodeProcessingError in function {func.__name__}: {data}, Error type {error}\n {stack}"
+            f"NodeProcessingError in function {func_name}: {data}, Error type {error}\n {stack}"
         )
         self.data = data
-        self.func_name = func.__name__
+        self.func_name = func_name
         self.origin_error = error
         self.stack = stack
