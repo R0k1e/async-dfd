@@ -62,7 +62,7 @@ class PipelineAnalyser(Analyser):
         self.node_group = node_group
 
     def report(self) -> str:
-        from ..node import Node
+        from .. import IterablePipeline, Node
 
         table = []
         headers = [
@@ -76,7 +76,7 @@ class PipelineAnalyser(Analyser):
 
         def add_infos(node_group, cur_table):
             for node in node_group.all_nodes.values():
-                if isinstance(node, Node) and node.is_start:
+                if isinstance(node, Node):
                     info = self.func_info[node.__name__]
                     with self.func_lock[node.__name__]:
                         interval_exec_count = info.interval_exec_count
