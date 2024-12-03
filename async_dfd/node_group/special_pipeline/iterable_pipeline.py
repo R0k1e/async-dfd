@@ -2,7 +2,8 @@ import logging
 import functools
 import itertools
 from typing import List, Iterable
-
+from gevent.lock import Semaphore
+from copy import deepcopy
 from .label_pipeline import LabelPipeline
 from ...node import Node
 from ...label import generate_label, LabelData
@@ -35,7 +36,9 @@ class IterablePipeline(LabelPipeline):
                 self.over_results[index] = None
                 return (self.task_label, index)
 
-    def __init__(self, all_nodes: List[Node], is_refresh_iter_data: bool = False):
+    def __init__(
+        self, all_nodes: List[Node], parallel_data=5, is_refresh_iter_data: bool = False
+    ):
         super().__init__(all_nodes=all_nodes)
         self.is_refresh_iter_data = is_refresh_iter_data
         self.processing_tasks = {}
@@ -43,7 +46,7 @@ class IterablePipeline(LabelPipeline):
         self.tail.add_put_decorator(self._iterable_put_data_decorator)
         self.head.is_data_iterable = True
         self.set_label_function(self.get_label)
-
+        self.parallel_semaphore = Semaphore(parallel_data)
         self.ppl_put_func = None
 
     def get_label(self, data_point, data_gen):
@@ -57,12 +60,21 @@ class IterablePipeline(LabelPipeline):
             if self.is_refresh_iter_data:
                 iter_data = iter(iter_data)
             try:
+                self.parallel_semaphore.acquire()
                 new_tasks = self.ProcessingTask(iter_data)
                 self.processing_tasks[new_tasks.task_label] = new_tasks
             except StopIteration:  # no data
                 task_label = "No Iterable Data"
                 data = LabelData((iter_data, {}), task_label)
                 self.ppl_put_func(data)
+                try:
+                    del self.processing_tasks[task_label]
+                except KeyError:
+                    pass
+                self.parallel_semaphore.release()
+            except Exception as e:
+                logger.error(e)
+                self.parallel_semaphore.release()
             ret = get_func(iter_data)
             return ret
 
@@ -85,11 +97,15 @@ class IterablePipeline(LabelPipeline):
 
             # check if all results ready
             if task.is_generator_exhausted and all(
-                over_results := [v is not None for v in task.over_results.values()]
+                [v is not None for v in task.over_results.values()]
             ):
-                del self.processing_tasks[label[0]]
-                data = LabelData((task.original_data, over_results), label[0])
+                over_results = list(task.over_results.values())
+                data = LabelData(
+                    (deepcopy(task.original_data), deepcopy(over_results)), label[0]
+                )
                 put_func(data)
+                del self.processing_tasks[label[0]]
+                self.parallel_semaphore.release()
 
         self.ppl_put_func = put_func
         return _iterable_put_data_wrapper
