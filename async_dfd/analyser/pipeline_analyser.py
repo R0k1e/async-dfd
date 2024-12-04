@@ -99,7 +99,7 @@ class PipelineAnalyser(Analyser):
                     cur_table.append(
                         [
                             "-".join(map(str, node.serial_number)),
-                            node.__name__,
+                            name,
                             f"{node.src_queue.qsize()}/{node.src_queue.maxsize}",
                             f"{len(node.executing_data_queue)}/{node.worker_num}",
                             (
