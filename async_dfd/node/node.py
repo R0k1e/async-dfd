@@ -17,7 +17,7 @@ from tenacity import (
 from .decorator import *
 
 from .. import ASYNC_DFD_CONFIG
-from ..exceptions import NodeProcessingError
+from ..exceptions import NodeProcessingError, NodeStop
 from .abstract_node import AbstractNode
 from .node_link import NodeLink
 
@@ -90,7 +90,7 @@ class Node(AbstractNode, NodeLink):
         Signals the end of the pipeline by putting a stop flag in the source queue.
         """
         for _ in range(self.worker_num):
-            self.src_queue.put(StopIteration())
+            self.src_queue.put(NodeStop())
         gevent.joinall(self.tasks)
 
     def put(self, data):
@@ -184,17 +184,21 @@ class Node(AbstractNode, NodeLink):
                 if not self.no_input:
                     with self.get_data_lock:
                         data = next(self.get_data_generator)
-                    if isinstance(data, StopIteration):
-                        raise StopIteration()
+                    if isinstance(data, NodeStop):
+                        raise NodeStop()
                     self.executing_data_queue.append(data)
                 result = self._proc_data(data)
                 self._put_data(result)
-            except StopIteration:
+            except NodeStop:
                 logger.info(f"Node {self.__name__} No. {task_id} stop")
                 break
             finally:
                 if data in self.executing_data_queue:
                     self.executing_data_queue.remove(data)
+            if task_id == 0 and self._is_upstream_end():
+                logger.info(f"Node {self.__name__} No. {task_id} upstream end")
+                self.end()
+                break
             sleep(0)
         if all(task.ready() for task in self.tasks):
             logger.info(f"Node {self.__name__} No. {task_id} all tasks finished")
@@ -204,10 +208,11 @@ class Node(AbstractNode, NodeLink):
         while self.is_start:
             data = self.src_queue.get()
             yield from self._get_one_data(data)
+        yield NodeStop()
 
     def _get_one_data(self, data):
-        if isinstance(data, StopIteration):
-            yield StopIteration()
+        if isinstance(data, NodeStop):
+            yield NodeStop()
         if self.is_data_iterable:
             assert isinstance(
                 data, Iterable
@@ -259,3 +264,11 @@ class Node(AbstractNode, NodeLink):
                     return NodeProcessingError((data), self.__name__, e, error_stack)
 
         return error_wrapper
+
+    def _is_upstream_end(self):
+        if self.src_nodes and all(
+            node.is_start == False for node in self.src_nodes.values()
+        ):
+            return True
+        else:
+            return False

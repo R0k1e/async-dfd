@@ -1,3 +1,6 @@
+class NodeStop(Exception):
+    pass
+
 class IllegalArgumentError(Exception):
     def __init__(self, data, func) -> None:
         super().__init__(f"IllegalArgumentError in function {func}: {data}")
