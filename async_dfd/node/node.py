@@ -35,6 +35,7 @@ class Node(AbstractNode, NodeLink):
         is_data_iterable=False,
         no_output=False,
         discard_none_output=False,
+        skip_error_none=True,
         timeout=None,
     ) -> None:
         super().__init__()
@@ -57,6 +58,7 @@ class Node(AbstractNode, NodeLink):
         self.no_output = no_output
         self.is_data_iterable = is_data_iterable
         self.discard_none_output = discard_none_output
+        self.skip_error_none = skip_error_none
         self.src_nodes = {}
         self.dst_nodes = {}
         self.get_data_lock = gevent.lock.Semaphore(1)
@@ -129,6 +131,8 @@ class Node(AbstractNode, NodeLink):
             assert len(self.dst_nodes) > 0, f"Node {self.__name__} dst_node is empty"
 
     def _setup_decorators(self):
+        if self.skip_error_none:
+            self.add_proc_decorator(skip_data_decorator)
         self._rearrange_proc_decorator()
         for decorator in self.get_decorators:
             self._get_one_data = decorator(self._get_one_data)
