@@ -9,9 +9,6 @@ logger = logging.getLogger(__name__)
 def skip_data_decorator(func):
     @functools.wraps(func)
     def skip_wrapper(data):
-        if data is None:
-            return
-
         if isinstance(data, Exception):
             return data
 
