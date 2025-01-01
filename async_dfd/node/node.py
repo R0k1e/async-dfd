@@ -4,6 +4,7 @@ import functools
 from typing import Iterable
 
 import gevent
+import copy
 from gevent import sleep, spawn
 from gevent.queue import Queue
 from tenacity import (
@@ -232,7 +233,7 @@ class Node(AbstractNode, NodeLink):
             if not self.criterias.get(node.__name__, None) or self.criterias[
                 node.__name__
             ](data):
-                node.put(data)
+                node.put(copy.deepcopy(data))
 
     def _error_decorator(self, func):
         @retry(
