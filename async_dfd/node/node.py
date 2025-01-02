@@ -38,6 +38,7 @@ class Node(AbstractNode, NodeLink):
         discard_none_output=False,
         skip_error=True,
         timeout=None,
+        put_deepcopy_data=False
     ) -> None:
         super().__init__()
         self.timeout = timeout if timeout else ASYNC_DFD_CONFIG.get("timeout", None)
@@ -55,15 +56,17 @@ class Node(AbstractNode, NodeLink):
 
         self.src_queue = Queue(self.queue_size)
         self.criterias = {}
+        self.src_nodes = {}
+        self.dst_nodes = {}
+        self.get_data_lock = gevent.lock.Semaphore(1)
+
         self.no_input = no_input
         self.no_output = no_output
         self.is_data_iterable = is_data_iterable
         self.discard_none_output = discard_none_output
         self.skip_error = skip_error
-        self.src_nodes = {}
-        self.dst_nodes = {}
-        self.get_data_lock = gevent.lock.Semaphore(1)
-
+        self.put_deepcopy_data = put_deepcopy_data
+        
         # first decorator will first wrap, as the inner decorator
         self.get_decorators = []
         self.proc_decorators = []
@@ -92,7 +95,6 @@ class Node(AbstractNode, NodeLink):
         """
         for _ in range(self.worker_num):
             self.src_queue.put(NodeStop())
-        gevent.joinall(self.tasks)
 
     def put(self, data):
         self.src_queue.put(data)
@@ -201,10 +203,10 @@ class Node(AbstractNode, NodeLink):
                 self.end()
                 break
             sleep(0)
-        if all(task.ready() for task in self.tasks):
-            logger.info(f"Node {self.__name__} No. {task_id} all tasks finished")
+        if all(task.ready() for task in self.tasks if task != gevent.getcurrent()):
+            logger.info(f"Node {self.__name__} No. {task_id} all other tasks finished")
             self.is_start = False
-
+            
     def _get_data(self):
         while self.is_start:
             data = self.src_queue.get()
@@ -233,7 +235,10 @@ class Node(AbstractNode, NodeLink):
             if not self.criterias.get(node.__name__, None) or self.criterias[
                 node.__name__
             ](data):
-                node.put(copy.deepcopy(data))
+                if self.put_deepcopy_data:
+                    node.put(copy.deepcopy(data))
+                else:
+                    node.put(data)
 
     def _error_decorator(self, func):
         @retry(
